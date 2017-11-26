@@ -188,8 +188,9 @@ train_test$BsmtFullBath[is.na(train_test$BsmtFullBath)] <- 0
 train_test$is_Garage <- !is.na(train_test$GarageFinish) 
 train_test$GarageFinish[is.na(train_test$GarageFinish)] <- 'No garage'
 train_test$GarageType[is.na(train_test$GarageType)] <- 'No garage'
-train_test$GarageYrBlt[is.na(train_test$GarageYrBlt)] <- median(train_test$GarageYrBlt, na.rm = TRUE)
+train_test$GarageYrBlt[is.na(train_test$GarageYrBlt)] <- mean(train_test$GarageYrBlt, na.rm = TRUE)
 
+train_test$GarageYrBlt[(train_test$GarageYrBlt)>2010] <- mean(train_test$GarageYrBlt, na.rm = TRUE)
 
 # 
 # #GarageQual
@@ -231,11 +232,16 @@ train_test$Exterior2nd[is.na(train_test$Exterior2nd)] <-  'VinylSd'
 train_test$Electrical[is.na(train_test$Electrical)] <-  'SBrkr'
 
 
-train_test$MSSubClass <- factor(train_test$MSSubClass)
+train_test$MSSubClass_factor <- factor(train_test$MSSubClass)
+
+train_test$is_LotFrontage <- 1
+train_test$is_LotFrontage[is.na(train_test$LotFrontage)] <- 0
 
 train_test$LotFrontage[is.na(train_test$LotFrontage)] <- mean(train_test$LotFrontage, na.rm = TRUE)
 
 train_test$SF <- train_test$FirstFlrSF + train_test$SecondFlrSF
+train_test$SF_sq <- (train_test$SF)^2
+train_test$SF_cub <- (train_test$SF)^3
 
 
 hist(train_test$SF)
@@ -280,9 +286,15 @@ table(train_test$LotConfig, useNA = 'always')
 train_test$is_Remod <- as.integer(train_test$YearRemodAdd == train_test$YearBuilt)
 
 train_test$YearBuilt_age <- max(train_test$YearBuilt)-train_test$YearBuilt
-hist(train_test$YearBuilt_age)
 train_test$YearRemodAdd_age <- max(train_test$YearRemodAdd)-train_test$YearRemodAdd
+train_test$GarageYrBlt_age <- max(train_test$GarageYrBlt)-train_test$GarageYrBlt
 
+train_test$YearBuilt_bucket <- round((order(train_test$YearBuilt)/max(order(train_test$YearBuilt))/0.2))
+
+
+train_test$YearRemodAdd_bucket <- round((order(train_test$YearRemodAdd)/max(order(train_test$YearRemodAdd))/0.2))
+
+train_test$GarageYrBlt_bucket <- round((order(train_test$GarageYrBlt)/max(order(train_test$GarageYrBlt))/0.2))
 
 
 # Calculate skewness
@@ -337,8 +349,8 @@ dim(train_test_dummy)
 
 #train_test_original <- train_test
 train_test <- train_test_dummy
-train_test$SalePrice
-exp(train_test$SalePrice)
+#train_test$SalePrice
+#exp(train_test$SalePrice)
 #edit formula
 
 na_df <- train_test %>% summarise_each(funs(sum(is.na(.) | is.infinite(.) | is.nan(.)))) 
@@ -368,7 +380,7 @@ X_test <- as.matrix(test_df %>% select( -SalePrice))
 
 #OLS
 fit.ols <- lm(SalePrice~., data = train_df )
-coef(fit.ols)
+#coef(fit.ols)
 
 #ridge
 #create test and training sets
