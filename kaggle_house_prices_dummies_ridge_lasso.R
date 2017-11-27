@@ -36,7 +36,7 @@ summary(train_test %>% select(!!!var_list))
 #####################################################
 
 # MSZoning
-train_test$MSSubClass_factor <- as.factor(train_test$MSSubClass)
+train_test$MSSubClass <- as.factor(train_test$MSSubClass)
 train_test$is_residential <- as.integer(train_test$MSZoning %in% c('FV', 'RH', 'RL', 'RP', 'RM'))
 table(train_test$is_residential, useNA = 'always')
 
@@ -57,6 +57,17 @@ train %>% group_by(LandSlope) %>% summarise(SalePrice = mean(SalePrice), n = n()
 # train_test$LandSlope_int[train_test$LandSlope == 'Mod'] <- 2
 # train_test$LandSlope_int[train_test$LandSlope == 'Sev'] <- 3
 # table(train_test$LandSlope_int, useNA = 'always')
+
+train_test$OverallQual_sq <- (train_test$OverallQual)^2
+train_test$OverallQual_sqrt <- sqrt(train_test$OverallQual)
+train_test$OverallQual_log <- log(train_test$OverallQual)
+
+#OverallCond
+
+train_test$OverallCond_sq <- (train_test$OverallCond)^2
+train_test$OverallCond_sqrt <- sqrt(train_test$OverallCond)
+train_test$OverallCond_log <- log(train_test$OverallCond)
+
 
 
 train_test %>% group_by(Condition2) %>% summarise(SalePrice = mean(SalePrice, na.rm = T), n = n())
@@ -188,9 +199,9 @@ train_test$BsmtFullBath[is.na(train_test$BsmtFullBath)] <- 0
 train_test$is_Garage <- !is.na(train_test$GarageFinish) 
 train_test$GarageFinish[is.na(train_test$GarageFinish)] <- 'No garage'
 train_test$GarageType[is.na(train_test$GarageType)] <- 'No garage'
-train_test$GarageYrBlt[is.na(train_test$GarageYrBlt)] <- mean(train_test$GarageYrBlt, na.rm = TRUE)
+train_test$GarageYrBlt[is.na(train_test$GarageYrBlt)] <- median(train_test$GarageYrBlt, na.rm = TRUE)
 
-train_test$GarageYrBlt[(train_test$GarageYrBlt)>2010] <- mean(train_test$GarageYrBlt, na.rm = TRUE)
+train_test$GarageYrBlt[(train_test$GarageYrBlt)>2010] <- median(train_test$GarageYrBlt, na.rm = TRUE)
 
 # 
 # #GarageQual
@@ -237,7 +248,7 @@ train_test$MSSubClass_factor <- factor(train_test$MSSubClass)
 train_test$is_LotFrontage <- 1
 train_test$is_LotFrontage[is.na(train_test$LotFrontage)] <- 0
 
-train_test$LotFrontage[is.na(train_test$LotFrontage)] <- mean(train_test$LotFrontage, na.rm = TRUE)
+train_test$LotFrontage[is.na(train_test$LotFrontage)] <- median(train_test$LotFrontage, na.rm = TRUE)
 
 train_test$SF <- train_test$FirstFlrSF + train_test$SecondFlrSF
 train_test$SF_sq <- (train_test$SF)^2
@@ -246,6 +257,7 @@ train_test$SF_cub <- (train_test$SF)^3
 
 hist(train_test$SF)
 
+all_neighborhoods <- unique(train_test$Neighborhood)
 
 # Remove NAs from factor variables
 
@@ -289,12 +301,12 @@ train_test$YearBuilt_age <- max(train_test$YearBuilt)-train_test$YearBuilt
 train_test$YearRemodAdd_age <- max(train_test$YearRemodAdd)-train_test$YearRemodAdd
 train_test$GarageYrBlt_age <- max(train_test$GarageYrBlt)-train_test$GarageYrBlt
 
-train_test$YearBuilt_bucket <- round((order(train_test$YearBuilt)/max(order(train_test$YearBuilt))/0.2))
+train_test$YearBuilt_bucket <- factor(round((order(train_test$YearBuilt)/max(order(train_test$YearBuilt))/0.2)))
 
 
-train_test$YearRemodAdd_bucket <- round((order(train_test$YearRemodAdd)/max(order(train_test$YearRemodAdd))/0.2))
+train_test$YearRemodAdd_bucket <- factor(round((order(train_test$YearRemodAdd)/max(order(train_test$YearRemodAdd))/0.2)))
 
-train_test$GarageYrBlt_bucket <- round((order(train_test$GarageYrBlt)/max(order(train_test$GarageYrBlt))/0.2))
+train_test$GarageYrBlt_bucket <- factor(round((order(train_test$GarageYrBlt)/max(order(train_test$GarageYrBlt))/0.2)))
 
 
 # Calculate skewness
@@ -305,13 +317,20 @@ skew_vars <-skew_df %>% filter(V1 > 0.4) %>% select(rowname)
 
 skew_vars_vector <- as.vector(unlist(skew_vars))
 
-
+train_test_temp <- train_test
+#train_test <- train_test_temp
 for(var in skew_vars_vector) {
+    #var <- skew_vars_vector[3]
+    if (!(paste0(var, '_log') %in% names(train_test))) {
     print(var)
-    train_test$new_log_col <- log(as.vector(unlist(train_test %>% select(!!!var)))+1)
+    var_value <- as.vector(unlist(train_test %>% select_(.dots = var)))
+    train_test$new_log_col <- log(var_value+1)
     names(train_test)[names(train_test) == 'new_log_col'] = paste0(var, '_log')
-        
+    }
 }
+
+
+
 ############# Neighborhood - should be the most predicting variable ever - need to check later
 ############# Exterior1st - need to fill/predict one variable
 ############# Exterior2nd - need to fill/predict one variable 
@@ -352,6 +371,93 @@ train_test <- train_test_dummy
 #train_test$SalePrice
 #exp(train_test$SalePrice)
 #edit formula
+
+# SF to neibourhood
+
+
+train_test$SF_log <- log(train_test$SF)
+
+train_test_temp <- train_test
+
+for(NB in all_neighborhoods) {
+    print(NB)
+
+    NB_index <- as.vector(unlist(train_test_temp %>% select_(.dots = paste0('Neighborhood',NB))))
+    train_test_temp$new_var <- NB_index*train_test_temp$SF
+    names(train_test_temp)[names(train_test_temp) == 'new_var'] = paste0(NB, '_SF')
+
+}
+
+
+for(NB in all_neighborhoods) {
+    print(NB)
+    
+    NB_index <- as.vector(unlist(train_test_temp %>% select_(.dots = paste0('Neighborhood',NB))))
+    train_test_temp$new_var <- NB_index*log(train_test_temp$SF)
+    names(train_test_temp)[names(train_test_temp) == 'new_var'] = paste0(NB, '_SF_log')
+    
+}
+
+
+for(NB in all_neighborhoods) {
+    print(NB)
+    
+    NB_index <- as.vector(unlist(train_test_temp %>% select_(.dots = paste0('Neighborhood',NB))))
+    train_test_temp$new_var <- NB_index*(train_test_temp$TotalBsmtSF_log)
+    names(train_test_temp)[names(train_test_temp) == 'new_var'] = paste0(NB, '_TotalBsmtSF_log')
+    
+}
+
+
+for(NB in all_neighborhoods) {
+    print(NB)
+    
+    NB_index <- as.vector(unlist(train_test_temp %>% select_(.dots = paste0('Neighborhood',NB))))
+    train_test_temp$new_var <- NB_index*(train_test_temp$LotArea_log)
+    names(train_test_temp)[names(train_test_temp) == 'new_var'] = paste0(NB, '_LotArea_log')
+    
+}
+
+
+for(NB in all_neighborhoods) {
+    print(NB)
+    
+    NB_index <- as.vector(unlist(train_test_temp %>% select_(.dots = paste0('Neighborhood',NB))))
+    train_test_temp$new_var <- NB_index*(train_test_temp$LotArea)
+    names(train_test_temp)[names(train_test_temp) == 'new_var'] = paste0(NB, '_LotArea')
+    
+}
+
+for(NB in all_neighborhoods) {
+    print(NB)
+    
+    NB_index <- as.vector(unlist(train_test_temp %>% select_(.dots = paste0('Neighborhood',NB))))
+    train_test_temp$new_var <- NB_index*train_test_temp$OverallQual
+    names(train_test_temp)[names(train_test_temp) == 'new_var'] = paste0(NB, '_OverallQual')
+    
+}
+
+
+
+for(NB in all_neighborhoods) {
+    print(NB)
+    
+    NB_index <- as.vector(unlist(train_test_temp %>% select_(.dots = paste0('Neighborhood',NB))))
+    train_test_temp$new_var <- NB_index*log(train_test_temp$OverallQual)
+    names(train_test_temp)[names(train_test_temp) == 'new_var'] = paste0(NB, '_OverallQual_log')
+    
+}
+# 
+# for(NB in all_neighborhoods) {
+#     print(NB)
+#     
+#     NB_index <- as.vector(unlist(train_test_temp %>% select_(.dots = paste0('Neighborhood',NB))))
+#     train_test_temp$new_var <- NB_index*train_test_temp$SF_log
+#     names(train_test_temp)[names(train_test_temp) == 'new_var'] = paste0(NB, '_SF_log')
+#     
+# }
+
+train_test <- train_test_temp
 
 na_df <- train_test %>% summarise_each(funs(sum(is.na(.) | is.infinite(.) | is.nan(.)))) 
 no_na <- names(train_test)[colSums(na_df)==0]
@@ -399,6 +505,8 @@ ridge.pred <- predict(ridge.mod, s = bestlam, newx = X)
 s.pred <- predict(fit.ols, newdata = train_df )
 #check MSE
 mean((s.pred-Y)^2)
+# 0.00747417
+
 mean((ridge.pred-Y)^2)
 # Final prediction
 
@@ -427,11 +535,40 @@ mean((lasso.pred-Y)^2)
 predict <- exp(predict(lasso.mod, s = bestlam, newx = X_test))
 
 
-final_result_lasso <- train_test %>% filter(is.na(SalePrice)) %>% select(Id) %>% mutate(Id = as.integer(Id), SalePrice = round(predict))
+final_result_lasso <- train_test %>% filter(is.na(SalePrice)) %>% select(Id) %>% mutate(Id = as.integer(Id), SalePrice = round(predict/100)*100)
+
+#final_result_lasso$SalePrice
 
 #dim(test_df[is.na(predict),])
 #final_result$SalePrice
 write_csv(final_result_lasso, path = 'dennis_submit_lasso.csv')
 
+############# Random Forest ##############
+
+
+rf <- randomForest(SalePrice ~ . ,data = train_df, importance = TRUE,  ntree=200)
+
+which.min(rf$mse)
+
+# Impression
+imp <- as.data.frame(sort(importance(rf)[,1],decreasing = TRUE),optional = T)
+names(imp) <- "% Inc MSE"
+imp
+View(imp %>% add_rownames())
+rf
+
+#  Mean of squared residuals: 0.01869494
+
+plot(rf)
+#varImpPlot(rf)
+# Prediction
+predict <- exp(predict(rf,test_df))
+
+
+final_result_rf <- train_test %>% filter(is.na(SalePrice)) %>% select(Id) %>% mutate(Id = as.integer(Id), SalePrice = round(predict/100)*100)
+
+dim(test_df[is.na(predict),])
+#predict
+write_csv(final_result_rf, path = 'dennis_submit_rf.csv')
 
 
