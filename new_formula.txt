@@ -1,0 +1,1 @@
+SalePrice ~ GrLivArea + SF + Neighborhood + BsmtFinSF1 + MSSubClass + FirstFlrSF + TotalBsmtSF + LotArea + OverallQual + SecondFlrSF + GarageArea + LotArea_log + OverallCond + GarageCars + FireplaceQu_int + BsmtFinType1 + TotRmsAbvGrd + YearBuilt + FireplaceQu_int_sq + HouseStyle
