@@ -18,15 +18,8 @@ train <- train %>% mutate(train_test = 1)
 test <- test %>% mutate(SalePrice = NA, train_test = 0)
 train_test <- train %>% bind_rows(test)
 
-show_plots = TRUE
 
 # Transform some integer variables into factors 
-a <- train_test %>% group_by(MSSubClass) %>% 
-    mutate(sales_mean = mean(SalePrice) %>% arrange(sales_mean) %>% 
-               mutate(MSSubClass = as.factor(MSSubClass))
-           
-    ggplot(s, aes(x = MSSubClass , y = SalePrice))+geom_boxplot()
-
 train_test <- train_test %>% 
     mutate(MSSubClass =  factor(MSSubClass), 
            MoSold = factor(MoSold), 
@@ -79,8 +72,39 @@ train_test <- train_test %>%
            is_LotFrontage = ifelse(LotFrontage == 0, 0, 1) 
     ) %>% # Change some names - dont like column names starting with number 
     mutate(FirstFlrSF = `1stFlrSF`, SecondFlrSF = `2ndFlrSF`, ThreeSsnPorch = `3SsnPorch`) %>% 
-    select(-`1stFlrSF`, -`2ndFlrSF`, -`3SsnPorch`)
+    select(-`1stFlrSF`, -`2ndFlrSF`, -`3SsnPorch`) 
+
+# Combine Condition1-2 
+Cond1_dummy <- train_test %>% select(Id, Condition1) %>% mutate(is_true = 1) %>% spread(key = Condition1, value = is_true, fill = 0) %>% gather(key = Condition, value = 'is_true', 2:(length(unique(train_test$Condition1))+1)) %>% arrange(Id)
+
+Cond2_dummy <- train_test %>% select(Id, Condition1) %>% mutate(is_true = 1) %>% spread(key = Condition1, value = is_true, fill = 0) %>% gather(key = Condition, value = 'is_true', 2:(length(unique(train_test$Condition1))+1)) %>% arrange(Id)
+
+Cond_dummy <- Cond1_dummy %>% bind_rows(Cond2_dummy) %>% group_by(Id, Condition) %>%
+    summarise(is_true = sum(is_true))  %>% mutate(is_true = ifelse(is_true > 0, 1,0)) %>% arrange(-is_true) %>% spread(Condition, value = is_true, fill = 0)
     
+train_test <- train_test %>% select(-Condition1, -Condition2) %>% left_join(Cond_dummy)
+
+# Combine Condition1-2 
+Cond1_dummy <- train_test %>% select(Id, Condition1) %>% mutate(is_true = 1) %>% spread(key = Condition1, value = is_true, fill = 0) %>% gather(key = Condition, value = 'is_true', 2:(length(unique(train_test$Condition1))+1)) %>% arrange(Id)
+
+Cond2_dummy <- train_test %>% select(Id, Condition1) %>% mutate(is_true = 1) %>% spread(key = Condition1, value = is_true, fill = 0) %>% gather(key = Condition, value = 'is_true', 2:(length(unique(train_test$Condition1))+1)) %>% arrange(Id)
+
+Cond_dummy <- Cond1_dummy %>% bind_rows(Cond2_dummy) %>% group_by(Id, Condition) %>%
+    summarise(is_true = sum(is_true))  %>% mutate(is_true = ifelse(is_true > 0, 1,0)) %>% arrange(-is_true) %>% spread(Condition, value = is_true, fill = 0)
+
+train_test <- train_test %>% select(-Condition1, -Condition2) %>% left_join(Cond_dummy)
+
+# Exterior1st and Exterior2nd
+Ext1_dummy <- train_test %>% select(Id, Exterior1st) %>% mutate(is_true = 1) %>% spread(key = Exterior1st, value = is_true, fill = 0) %>% gather(key = Exterior, value = 'is_true', 2:(length(unique(train_test$Exterior1st))+1)) %>% arrange(Id)
+
+Ext2_dummy <- train_test %>% select(Id, Exterior2nd) %>% mutate(is_true = 1) %>% spread(key = Exterior2nd, value = is_true, fill = 0) %>% gather(key = Exterior, value = 'is_true', 2:(length(unique(train_test$Exterior2nd))+1)) %>% arrange(Id)
+
+Exterior_dummy <- Ext1_dummy %>% bind_rows(Ext2_dummy) %>% group_by(Id, Exterior) %>%
+    summarise(is_true = sum(is_true))  %>% mutate(is_true = ifelse(is_true > 0, 1,0)) %>% arrange(-is_true) %>% spread(Exterior, value = is_true, fill = 0)
+
+train_test <- train_test %>% select(-Exterior1st, -Exterior2nd) %>% left_join(Exterior_dummy)
+
+
 # Model some new variables 
 
 train_test <- train_test %>% 
@@ -95,21 +119,20 @@ train_test <- train_test %>%
 
 # Transform all non-numeric columns to factors
 train_test <- train_test %>% mutate_if(is.character, factor )
-
-# Transform all numeric columns to logs
-train_test <- train_test %>% 
-    mutate_if(.predicate = is.numeric(.) & max(as.integer(.), na.rm = T)>1 & !is.factor(.), .funs = function(x) log(x+1))
+str(train_test)
 
 # Separate numeric columns and convert then to logs
 train_test_numeric <- train_test %>% 
-    select_if(
-        funs(is.numeric(.) & max(as.integer(.), na.rm = T)>1 & !is.factor(.))
-        ) %>% select(-Id)
+     select_if(
+         funs(is.numeric(.) & max(as.integer(.), na.rm = T)>1 & !is.factor(.))
+         ) %>% select(-Id)
 
 # Convert all numerics to logs
-train_test_numeric_log <- train_test_numeric
-train_test_numeric_log[,] <- log(train_test_numeric[,]+1)
-names(train_test_numeric_log) <- paste0(names(train_test_numeric_log), '_log')
+train_test_numeric_log <- train_test_numeric 
+#%>% mutate(SalePrice_log = log(SalePrice)) %>% 
+#    select(-SalePrice)
+ train_test_numeric_log[,] <- log(train_test_numeric[,]+1)
+ names(train_test_numeric_log) <- paste0(names(train_test_numeric_log), '_log')
 
 # Create dummy variables 
 train_test_non_numeric <- train_test %>% select(-one_of(names(train_test_numeric))) %>% select(-Id, -train_test)
@@ -138,7 +161,7 @@ train_test_original <- train_test %>%
 #Remove them 
 #train_test_log <- train_test_log %>% select(-one_of(train_useless_vars)) %>% select(-one_of(test_useless_vars))
 
-train_test_original <- train_test_original %>% select(-one_of(train_useless_vars)) %>% select(-one_of(test_useless_vars))
+# train_test_original <- train_test_original %>% select(-one_of(train_useless_vars)) %>% select(-one_of(test_useless_vars))
 
 # Final test for NA's in variables 
 na_df <- train_test_original %>% summarise_each(funs(sum(is.na(.) | is.infinite(.) | is.nan(.)))) 
@@ -161,8 +184,8 @@ Y <- train_df$SalePrice_log
 X_test <- as.matrix(test_df %>% select( -SalePrice_log))
 
 
-X_exp <- as.matrix(train_df_exp %>% select( -SalePrice))
-X_test_exp <- as.matrix(test_df_exp %>% select( -SalePrice))
+ X_exp <- as.matrix(train_df_exp %>% select( -SalePrice))
+ X_test_exp <- as.matrix(test_df_exp %>% select( -SalePrice))
 
 # Now LM 
 library(glmnet)
@@ -170,12 +193,12 @@ library(glmnet)
 lambda <- 10^seq(10, -2, length = 100)
 
 # Now lets try Lasso
-if(TRUE) {
 cv.out <- cv.glmnet(X, Y, alpha = 1)
 bestlam <- cv.out$lambda.min
-
+bestlam
 
 lasso.mod <- glmnet(X, Y, alpha = 1, lambda = lambda)
+print(lasso.mod)
 lasso.pred <- predict(lasso.mod, s = bestlam, newx = X)
 
 mean((lasso.pred-Y)^2)
@@ -184,8 +207,10 @@ mean((lasso.pred-Y)^2)
 resid <- exp(Y)-exp(lasso.pred)
 
 
+train_df <- train_df %>% select(-SalePrice_log) %>% mutate(resid = resid)
 train_df_exp <- train_df_exp %>% select(-SalePrice) %>% mutate(resid = resid)
 
+#rf <- randomForest(resid ~ . ,data = train_df, importance = TRUE,  ntree=500)
 rf <- randomForest(resid ~ . ,data = train_df_exp, importance = TRUE,  ntree=500)
 
 which.min(rf$mse)
@@ -203,6 +228,7 @@ predict_resid_train <- predict(rf,train_df_exp)
 mean((log(predict_resid_train+exp(lasso.pred))-Y)^2)
 
 
+#predict_lasso <- exp(predict(lasso.mod, s = bestlam, newx = X_test))
 predict_lasso <- exp(predict(lasso.mod, s = bestlam, newx = X_test))
 
 predict_resid <- predict(rf,  test_df_exp)
@@ -218,7 +244,7 @@ final_result_lasso <- train_test %>% filter(is.na(SalePrice)) %>% select(Id) %>%
 #dim(test_df[is.na(predict),])
 final_result_lasso$SalePrice
 write_csv(final_result_lasso, path = 'dennis_submit_lasso_rf.csv')
-}
+
 
 # Now XGboost 
 

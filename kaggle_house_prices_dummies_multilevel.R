@@ -22,7 +22,7 @@ show_plots = TRUE
 
 # Transform some integer variables into factors 
 a <- train_test %>% group_by(MSSubClass) %>% 
-    mutate(sales_mean = mean(SalePrice) %>% arrange(sales_mean) %>% 
+    mutate(sales_mean = mean(SalePrice)) %>% arrange(sales_mean) %>% 
                mutate(MSSubClass = as.factor(MSSubClass))
            
     ggplot(s, aes(x = MSSubClass , y = SalePrice))+geom_boxplot()
