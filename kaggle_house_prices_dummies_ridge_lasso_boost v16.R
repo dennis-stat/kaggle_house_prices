@@ -27,8 +27,16 @@ train_test <- train_test %>%
 MoSold = factor(MoSold), 
 #Neighborhood_YrSold = factor(paste(Neighborhood, YrSold, sep = '_'))) %>% 
 #    mutate(YrSold = YrSold-min(YrSold))
-YrSold = factor(YrSold))
+YrSold_factor = factor(YrSold))
 
+train_test$GarageYrBlt[train_test$GarageYrBlt == 2207] <- 2007
+
+
+# train_test$NeighRich[train_test$Neighborhood %in% c('StoneBr', 'NridgHt', 'NoRidge')] <- 'Top'
+# train_test$NeighRich[!train_test$Neighborhood %in% c('MeadowV', 'IDOTRR', 'BrDale', 'StoneBr', 'NridgHt', 'NoRidge')] <- 'Middle'
+# train_test$NeighRich[train_test$Neighborhood %in% c('MeadowV', 'IDOTRR', 'BrDale')] <- 'Bottom'
+
+#train_test$NeighRich_Year <- factor(paste(train_test$Neighborhood, train_test$YrSold))
 # Overall Quality - should we use it linear?
 
 ggplot(train_test %>% filter(train_test == 1) , aes(x=factor(OverallQual), y=SalePrice))+
@@ -61,7 +69,7 @@ train_test <- train_test %>%
                     GarageType = 'No garage', 
                     GarageQual = 'No garage', 
                     GarageCond = 'No garage', 
-                    GarageYrBlt =  mean(train_test$GarageYrBlt, na.rm = TRUE), 
+                    GarageYrBlt =  train_test$YearBuilt, 
                     GarageCars = 0, 
                     GarageArea = 0, 
                     KitchenQual = 'NA', 
@@ -77,7 +85,9 @@ train_test <- train_test %>%
                     LotFrontage = 0, 
                     PoolQC = 'NA'
                     )) %>% 
-    mutate(GarageYrBlt = ifelse(GarageYrBlt>2010, median(GarageYrBlt, na.rm = TRUE),GarageYrBlt), 
+    mutate(GarageYrBlt = ifelse(GarageYrBlt>YrSold, YrSold,GarageYrBlt), 
+           YearBuilt = ifelse(YearBuilt>YrSold, YrSold,YearBuilt),
+           YearRemodAdd = ifelse(YearRemodAdd>YrSold, YrSold,YearRemodAdd),
            is_EnclosedPorch = ifelse(EnclosedPorch == 0, 0,1), 
           # is_NeighRich = ifelse(Neighborhood %in% c('StoneBr', 'NridgHt', 'NoRidge'), 1,0), 
            
@@ -90,6 +100,7 @@ train_test <- train_test %>%
     mutate(FirstFlrSF = `1stFlrSF`, SecondFlrSF = `2ndFlrSF`, ThreeSsnPorch = `3SsnPorch`) %>% 
     select(-`1stFlrSF`, -`2ndFlrSF`, -`3SsnPorch`) 
 
+#train_test <- train_test %>% mutate(TotalSqFeet = GrLivArea +  TotalBsmtSF) #, NeighRich = NA)
 # Transform Miscfeatures 
  
 train_test_misc <- train_test %>% select(Id, MiscFeature, MiscVal) %>% group_by(Id) %>% 
@@ -98,8 +109,8 @@ train_test_misc <- train_test %>% select(Id, MiscFeature, MiscVal) %>% group_by(
 
 train_test <- train_test %>% select(-MiscFeature, -MiscVal) %>% bind_cols(train_test_misc)
     
-# 
-# # Combine Condition1-2
+
+# Combine Condition1-2
 # Cond1_dummy <- train_test %>% select(Id, Condition1) %>% mutate(is_true = 1) %>% spread(key = Condition1, value = is_true, fill = 0) %>% gather(key = Condition, value = 'is_true', 2:(length(unique(train_test$Condition1))+1)) %>% arrange(Id)
 # 
 # Cond2_dummy <- train_test %>% select(Id, Condition1) %>% mutate(is_true = 1) %>% spread(key = Condition1, value = is_true, fill = 0) %>% gather(key = Condition, value = 'is_true', 2:(length(unique(train_test$Condition1))+1)) %>% arrange(Id)
@@ -124,13 +135,18 @@ train_test <- train_test %>% select(-MiscFeature, -MiscVal) %>% bind_cols(train_
 
 train_test <- train_test %>% 
     mutate(is_Remod = as.integer(YearRemodAdd == YearBuilt),
-           YearBuilt_age = max(YearBuilt)-YearBuilt,
-           YearRemodAdd_age = max(YearRemodAdd)-YearRemodAdd,
-           GarageYrBlt_age = max(GarageYrBlt)-GarageYrBlt, 
-           YearBuilt_bucket = factor(round((order(YearBuilt)/max(order(YearBuilt))/0.2))),
-           YearRemodAdd_bucket = factor(round((order(YearRemodAdd)/max(order(YearRemodAdd))/0.2))),
-           GarageYrBlt_bucket = factor(round((order(GarageYrBlt)/max(order(GarageYrBlt))/0.2)))
-    ) %>% select(-YearBuilt, -YearRemodAdd, -GarageYrBlt, -Utilities)  # Utilities are useless - they have only one value 
+           is_new = as.integer(YrSold==YearBuilt),
+           is_new_Garage = as.integer(GarageYrBlt == YearBuilt), 
+           YearBuilt_age = YrSold-YearBuilt+1,
+           YearRemodAdd_age = YrSold-YearRemodAdd+1,
+           GarageYrBlt_age = YrSold-GarageYrBlt+1, 
+           YearBuilt_bucket = factor(round((YearBuilt_age/max(YearBuilt_age))/0.15)),
+           YearRemodAdd_bucket = factor(round((YearRemodAdd_age/max(YearRemodAdd_age))/0.15))
+           
+          # GarageYrBlt_bucket = factor(round((order(GarageYrBlt)/max(order(GarageYrBlt))/0.2)))
+    ) %>% select(-YearBuilt, -YearRemodAdd, -GarageYrBlt, -Utilities, -YrSold)  # Utilities are useless - they have only one value 
+
+
 
 # Transform all non-numeric columns to factors
 train_test <- train_test %>% mutate_if(is.character, factor )
@@ -155,8 +171,9 @@ train_test_numeric <- train_test %>%
 
 
 # Convert all numerics to logs
-train_test_numeric_skew <- train_test_numeric %>% 
-    select_if(funs(abs(skew(.))>1 )) 
+train_test_numeric_skew <- train_test_numeric #%>% select_if(funs(abs(skew(.))>1 )) 
+names(train_test_numeric_skew)
+names(train_test_numeric)
 
 train_test_numeric_skew_log <- train_test_numeric_skew %>% 
     mutate_all(funs(log(1 + .)))
@@ -202,9 +219,7 @@ with_na <- names(train_test_log)[colSums(na_df)>0]
 with_na
 
 
-
 # Prepare the final df's 
-
 train_df_log <- train_test_log %>% filter(!is.na(SalePrice)) %>% select(-Id) 
 test_df_log <- train_test_log %>% filter(is.na(SalePrice)) %>% select(-Id) 
 
@@ -243,8 +258,9 @@ hist(resid)
 
 names(train_test_non_dummy) <- make.names(names(train_test_non_dummy))
 
+train_test_non_dummy <- train_test_non_dummy #%>% select(-NeighRich_Year)
 # Now fit the random forest 
-rf <- randomForest(resid ~ . ,train_test_non_dummy %>% filter(train_test == 1) %>% select(-SalePrice, -train_test) %>% mutate(resid = resid, lasso_pred = lasso.pred_log.train) , importance = TRUE,  ntree=500)
+rf <- randomForest(resid ~ . ,train_test_non_dummy %>% filter(train_test == 1)  %>% mutate(resid = resid, lasso_pred = lasso.pred_log.train) %>% select(-SalePrice, -train_test) , importance = TRUE,  ntree=500)
 
 which.min(rf$mse)
 # 
@@ -260,7 +276,8 @@ length(rf$mse)
 
 plot(rf)
 
-predict_resid_train <- predict(rf,train_test_non_dummy %>% filter(train_test == 1) %>% select(-SalePrice, -train_test) %>% mutate(lasso_pred = lasso.pred_log.train))
+predict_resid_train <- predict(rf,train_test_non_dummy %>% filter(train_test == 1)  %>% mutate(lasso_pred = lasso.pred_log.train) %>% select(-SalePrice, -train_test))
+
 
 # Comparing MSEs
 
