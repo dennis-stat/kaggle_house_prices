@@ -21,7 +21,9 @@ train <- train %>% mutate(train = 1) %>% filter(Id != '524', Id != '1299')
 test <- test %>% mutate(SalePrice = NA, train = 0)
 train_test <- train %>% bind_rows(test)
 
-
+#train_test$OverallQual <- factor(train_test$OverallQual)
+train_test <- train_test %>% select(-GarageCars)
+    
 # Transform some integer variables into factors 
 train_test <- train_test %>% 
     mutate(MSSubClass =  factor(MSSubClass), 
@@ -54,7 +56,6 @@ ggplot(train_test_neib_sq_f_price, aes(x = YrSold, y = price_sq_f, group = Neigh
 
 # Fix some NA's 
 train_test <- train_test %>% 
-    
     mutate(is_new_Garage = as.integer(abs(GarageYrBlt-YearBuilt)<1)) %>% 
     replace_na(list(Alley = 'No Alley', 
                     MasVnrArea = 0,
@@ -71,12 +72,12 @@ train_test <- train_test %>%
                     BsmtHalfBath = 0, 
                     BsmtFullBath = 0, 
                     GarageFinish = 'No garage', 
-                   GarageYrBlt =  median(train_test$GarageYrBlt, na.rm = TRUE), 
+                   GarageYrBlt =  1979, #median(train_test$GarageYrBlt, na.rm = TRUE), 
                     GarageType = 'No garage', 
                     GarageQual = 'No garage', 
                     GarageCond = 'No garage', 
                     
-                    GarageCars = 0, 
+                 #   GarageCars = 0, 
                     GarageArea = 0, 
                     KitchenQual = 'NA', 
                     Functional = 'NA', 
@@ -90,8 +91,7 @@ train_test <- train_test %>%
                     Electrical = 'SBrkr', 
                     LotFrontage = 0, 
                     PoolQC = 'NA', 
-                is_new_Garage = 0
-                    )) %>% 
+                is_new_Garage = 0)) %>% 
     #mutate(  SF = GrLivArea+TotalBsmtSF)%>% 
     mutate(GarageYrBlt = ifelse(GarageYrBlt>YrSold, YrSold,GarageYrBlt), 
            YearBuilt = ifelse(YearBuilt>YrSold, YrSold,YearBuilt),
@@ -123,7 +123,7 @@ train_test <- train_test %>% select(-MiscFeature, -MiscVal) %>% bind_cols(train_
 
 # Create Year + Neighborhood
 
-Yr_Nb <- train_test %>% group_by(Id) %>% summarise(Neighborhood_YrSold = factor(paste(Neighborhood, YrSold, sep = '_'))) 
+#Yr_Nb <- train_test %>% group_by(Id) %>% summarise(Neighborhood_YrSold = factor(paste(Neighborhood, YrSold, sep = '_'))) 
 
 
 Yr_Nb_dummy <- train_test %>% 
@@ -151,24 +151,24 @@ Yr_Nb_ic_final  <- Yr_Nb_ic %>% select(Neighborhood, ic = estimate ) %>% ungroup
 train_test <- train_test %>% left_join(Yr_Nb_slope_final)
 
 # Combine Condition1-2
-# Cond1_dummy <- train_test %>% select(Id, Condition1) %>% mutate(is_true = 1) %>% spread(key = Condition1, value = is_true, fill = 0) %>% gather(key = Condition, value = 'is_true', 2:(length(unique(train_test$Condition1))+1)) %>% arrange(Id)
-# 
-# Cond2_dummy <- train_test %>% select(Id, Condition1) %>% mutate(is_true = 1) %>% spread(key = Condition1, value = is_true, fill = 0) %>% gather(key = Condition, value = 'is_true', 2:(length(unique(train_test$Condition1))+1)) %>% arrange(Id)
-# 
-# Cond_dummy <- Cond1_dummy %>% bind_rows(Cond2_dummy) %>% group_by(Id, Condition) %>%
-#     summarise(is_true = sum(is_true))  %>% mutate(is_true = ifelse(is_true > 0, 1,0)) %>% arrange(-is_true) %>% spread(Condition, value = is_true, fill = 0)
-# 
-# train_test <- train_test %>% select(-Condition1, -Condition2) %>% left_join(Cond_dummy)
-# 
-# # Exterior1st and Exterior2nd
-# Ext1_dummy <- train_test %>% select(Id, Exterior1st) %>% mutate(is_true = 1) %>% spread(key = Exterior1st, value = is_true, fill = 0) %>% gather(key = Exterior, value = 'is_true', 2:(length(unique(train_test$Exterior1st))+1)) %>% arrange(Id)
-# 
-# Ext2_dummy <- train_test %>% select(Id, Exterior2nd) %>% mutate(is_true = 1) %>% spread(key = Exterior2nd, value = is_true, fill = 0) %>% gather(key = Exterior, value = 'is_true', 2:(length(unique(train_test$Exterior2nd))+1)) %>% arrange(Id)
-# 
-# Exterior_dummy <- Ext1_dummy %>% bind_rows(Ext2_dummy) %>% group_by(Id, Exterior) %>%
-#     summarise(is_true = sum(is_true))  %>% mutate(is_true = ifelse(is_true > 0, 1,0)) %>% arrange(-is_true) %>% spread(Exterior, value = is_true, fill = 0)
-# 
-# train_test <- train_test %>% select(-Exterior1st, -Exterior2nd) %>% left_join(Exterior_dummy)
+Cond1_dummy <- train_test %>% select(Id, Condition1) %>% mutate(is_true = 1) %>% spread(key = Condition1, value = is_true, fill = 0) %>% gather(key = Condition, value = 'is_true', 2:(length(unique(train_test$Condition1))+1)) %>% arrange(Id)
+
+Cond2_dummy <- train_test %>% select(Id, Condition1) %>% mutate(is_true = 1) %>% spread(key = Condition1, value = is_true, fill = 0) %>% gather(key = Condition, value = 'is_true', 2:(length(unique(train_test$Condition1))+1)) %>% arrange(Id)
+
+Cond_dummy <- Cond1_dummy %>% bind_rows(Cond2_dummy) %>% group_by(Id, Condition) %>%
+    summarise(is_true = sum(is_true))  %>% mutate(is_true = ifelse(is_true > 0, 1,0)) %>% arrange(-is_true) %>% spread(Condition, value = is_true, fill = 0)
+
+train_test <- train_test %>% select(-Condition1, -Condition2) %>% left_join(Cond_dummy)
+
+# Exterior1st and Exterior2nd
+Ext1_dummy <- train_test %>% select(Id, Exterior1st) %>% mutate(is_true = 1) %>% spread(key = Exterior1st, value = is_true, fill = 0) %>% gather(key = Exterior, value = 'is_true', 2:(length(unique(train_test$Exterior1st))+1)) %>% arrange(Id)
+
+Ext2_dummy <- train_test %>% select(Id, Exterior2nd) %>% mutate(is_true = 1) %>% spread(key = Exterior2nd, value = is_true, fill = 0) %>% gather(key = Exterior, value = 'is_true', 2:(length(unique(train_test$Exterior2nd))+1)) %>% arrange(Id)
+
+Exterior_dummy <- Ext1_dummy %>% bind_rows(Ext2_dummy) %>% group_by(Id, Exterior) %>%
+    summarise(is_true = sum(is_true))  %>% mutate(is_true = ifelse(is_true > 0, 1,0)) %>% arrange(-is_true) %>% spread(Exterior, value = is_true, fill = 0)
+
+train_test <- train_test %>% select(-Exterior1st, -Exterior2nd) %>% left_join(Exterior_dummy)
 
 
 # Model some new variables 
@@ -210,7 +210,7 @@ train_test_numeric <- train_test %>%
 
 
 # Convert all numerics to logs
-train_test_numeric_skew <- train_test_numeric %>% select_if(funs(abs(skew(.))>1 )) 
+train_test_numeric_skew <- train_test_numeric #%>% select_if(funs(abs(skew(.))>1 )) 
 names(train_test_numeric_skew)
 names(train_test_numeric)
 
@@ -250,8 +250,8 @@ train_test_non_dummy <-
     bind_cols(train_test_numeric_skew) %>% 
     bind_cols(train_test_numeric_non_skew) %>%
     bind_cols(train_test_numeric_already_dummy) %>% 
-    bind_cols(train_test_non_numeric)  %>% 
-    bind_cols(Yr_Nb_dummy %>% select(-Id))
+    bind_cols(train_test_non_numeric) # %>% 
+  #  bind_cols(Yr_Nb_dummy %>% select(-Id))
 
 # Final test for NA's in variables 
 na_df <- train_test_log %>% 
